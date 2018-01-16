@@ -22,7 +22,7 @@ Profiles:
                     - *ORG1
                     - *ORG2
                     - *ORG3
-    common:
+    relationship:
         Consortium: SampleConsortium
         Application:
             <<: *ApplicationDefaults
@@ -30,26 +30,12 @@ Profiles:
                 - *ORG1
                 - *ORG2
                 - *ORG3
-    ORG2-ORG3:
+    score:
         Consortium: SampleConsortium
         Application:
             <<: *ApplicationDefaults
             Organizations:
                 - *ORG2
-                - *ORG3
-    ORG1-ORG2:
-        Consortium: SampleConsortium
-        Application:
-            <<: *ApplicationDefaults
-            Organizations:
-                - *ORG1
-                - *ORG2
-    ORG1-ORG3:
-        Consortium: SampleConsortium
-        Application:
-            <<: *ApplicationDefaults
-            Organizations:
-                - *ORG1
                 - *ORG3
 
 ################################################################################

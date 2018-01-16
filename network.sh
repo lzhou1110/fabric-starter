@@ -3,11 +3,11 @@
 starttime=$(date +%s)
 
 # defaults; export these variables before executing this script
-: ${DOMAIN:="example.com"}
+: ${DOMAIN:="loanbook.ae"}
 : ${IP_ORDERER:="54.234.201.67"}
-: ${ORG1:="a"}
-: ${ORG2:="b"}
-: ${ORG3:="c"}
+: ${ORG1:="borrower"}
+: ${ORG2:="lender"}
+: ${ORG3:="system"}
 : ${IP1:="54.86.191.160"}
 : ${IP2:="54.243.0.168"}
 : ${IP3:="54.211.142.174"}
@@ -17,8 +17,8 @@ CLI_TIMEOUT=10000
 COMPOSE_TEMPLATE=ledger/docker-composetemplate.yaml
 COMPOSE_FILE_DEV=ledger/docker-composedev.yaml
 
-CHAINCODE_COMMON_NAME=reference
-CHAINCODE_BILATERAL_NAME=relationship
+CHAINCODE_COMMON_NAME=loan
+CHAINCODE_BILATERAL_NAME=score
 CHAINCODE_COMMON_INIT='{"Args":["init","a","100","b","100"]}'
 CHAINCODE_BILATERAL_INIT='{"Args":["init","a","100","b","100"]}'
 CHAINCODE_WARMUP_QUERY='{\"Args\":[\"query\",\"a\"]}'
@@ -125,7 +125,7 @@ function generateOrdererArtifacts() {
     mkdir -p artifacts/channel
     docker-compose --file ${f} run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.$DOMAIN" configtxgen -profile OrdererGenesis -outputBlock ./channel/genesis.block
 
-    for channel_name in common "$ORG1-$ORG2" "$ORG1-$ORG3" "$ORG2-$ORG3"
+    for channel_name in score relationship
     do
         echo "Generating channel config transaction for $channel_name"
         docker-compose --file ${f} run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.$DOMAIN" configtxgen -profile "$channel_name" -outputCreateChannelTx "./channel/$channel_name.tx" -channelID "$channel_name"
@@ -669,17 +669,13 @@ if [ "${MODE}" == "up" -a "${ORG}" == "" ]; then
     installAll ${org}
   done
 
-  createJoinInstantiateWarmUp ${ORG1} common ${CHAINCODE_COMMON_NAME} ${CHAINCODE_COMMON_INIT}
-  createJoinInstantiateWarmUp ${ORG1} "${ORG1}-${ORG2}" ${CHAINCODE_BILATERAL_NAME} ${CHAINCODE_BILATERAL_INIT}
-  createJoinInstantiateWarmUp ${ORG1} "${ORG1}-${ORG3}" ${CHAINCODE_BILATERAL_NAME} ${CHAINCODE_BILATERAL_INIT}
+  createJoinInstantiateWarmUp ${ORG3} relationship ${CHAINCODE_COMMON_NAME} ${CHAINCODE_COMMON_INIT}
 
-  joinWarmUp ${ORG2} common ${CHAINCODE_COMMON_NAME}
-  joinWarmUp ${ORG2} "${ORG1}-${ORG2}" ${CHAINCODE_BILATERAL_NAME}
-  createJoinInstantiateWarmUp ${ORG2} "${ORG2}-${ORG3}" ${CHAINCODE_BILATERAL_NAME} ${CHAINCODE_BILATERAL_INIT}
+  joinWarmUp ${ORG1} relationship ${CHAINCODE_COMMON_NAME}
+  joinWarmUp ${ORG2} relationship ${CHAINCODE_COMMON_NAME}
 
-  joinWarmUp ${ORG3} common ${CHAINCODE_COMMON_NAME}
-  joinWarmUp ${ORG3} "${ORG1}-${ORG3}" ${CHAINCODE_BILATERAL_NAME}
-  joinWarmUp ${ORG3} "${ORG2}-${ORG3}" ${CHAINCODE_BILATERAL_NAME}
+  createJoinInstantiateWarmUp ${ORG3} score ${CHAINCODE_BILATERAL_NAME} ${CHAINCODE_BILATERAL_INIT}
+  joinWarmUp ${ORG2} score ${CHAINCODE_BILATERAL_NAME}
 
 elif [ "${MODE}" == "down" ]; then
   dockerComposeDown ${DOMAIN}

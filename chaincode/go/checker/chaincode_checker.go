@@ -11,13 +11,12 @@ import (
 	"strings"
 )
 
-var logger = shim.NewLogger("SimpleChaincode")
+var logger = shim.NewLogger("CheckerChaincode")
 
-// SimpleChaincode example simple Chaincode implementation
-type SimpleChaincode struct {
+type CheckerChaincode struct {
 }
 
-func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
+func (t *CheckerChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	logger.Debug("Init")
 
 	_, args := stub.GetFunctionAndParameters()
@@ -56,7 +55,7 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	return shim.Success(nil)
 }
 
-func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
+func (t *CheckerChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	logger.Debug("Invoke")
 
 	creatorBytes, err := stub.GetCreator()
@@ -84,7 +83,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 }
 
 // Transaction makes payment of x units from a to b
-func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *CheckerChaincode) move(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	var a, b string    // Entities
 	var aVal, bVal int // Asset holdings
 	var x int          // Transaction value
@@ -140,7 +139,7 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 }
 
 // deletes an entity from state
-func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *CheckerChaincode) delete(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	if len(args) != 1 {
 		return pb.Response{Status:403, Message:"Incorrect number of arguments"}
 	}
@@ -157,7 +156,7 @@ func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string
 }
 
 // read value
-func (t *SimpleChaincode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *CheckerChaincode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	var a string // Entities
 	var err error
 
@@ -194,7 +193,7 @@ var getCreator = func (certificate []byte) (string, string) {
 }
 
 func main() {
-	err := shim.Start(new(SimpleChaincode))
+	err := shim.Start(new(CheckerChaincode))
 	if err != nil {
 		logger.Error(err.Error())
 	}

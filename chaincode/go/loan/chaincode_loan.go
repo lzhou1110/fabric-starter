@@ -9,54 +9,23 @@ import (
 	"encoding/pem"
 	"crypto/x509"
 	"strings"
+	"time"
+	"fmt"
 )
 
-var logger = shim.NewLogger("SimpleChaincode")
+var logger = shim.NewLogger("LoanChaincode")
 
-// SimpleChaincode example simple Chaincode implementation
-type SimpleChaincode struct {
+// LoanChaincode example simple Chaincode implementation
+type LoanChaincode struct {
 }
 
-func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
+func (t *LoanChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	logger.Debug("Init")
-
-	_, args := stub.GetFunctionAndParameters()
-	var a, b string    // Entities
-	var aVal, bVal int // Asset holdings
-	var err error
-
-	if len(args) != 4 {
-		return pb.Response{Status:403, Message:"Incorrect number of arguments. Expecting 4"}
-	}
-
-	// Initialize the chaincode
-	a = args[0]
-	aVal, err = strconv.Atoi(args[1])
-	if err != nil {
-		return pb.Response{Status:403, Message:"Expecting integer value for asset holding"}
-	}
-	b = args[2]
-	bVal, err = strconv.Atoi(args[3])
-	if err != nil {
-		return pb.Response{Status:403, Message:"Expecting integer value for asset holding"}
-	}
-	logger.Debugf("aVal, bVal = %d", aVal, bVal)
-
-	// Write the state to the ledger
-	err = stub.PutState(a, []byte(strconv.Itoa(aVal)))
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	err = stub.PutState(b, []byte(strconv.Itoa(bVal)))
-	if err != nil {
-		return shim.Error(err.Error())
-	}
 
 	return shim.Success(nil)
 }
 
-func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
+func (t *LoanChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	logger.Debug("Invoke")
 
 	creatorBytes, err := stub.GetCreator()
@@ -69,29 +38,24 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	logger.Debug("transaction creator " + name + "@" + org)
 
 	function, args := stub.GetFunctionAndParameters()
-	if function == "move" {
-		// Make payment of x units from a to b
-		return t.move(stub, args)
-	} else if function == "delete" {
-		// Deletes an entity from its state
-		return t.delete(stub, args)
-	} else if function == "query" {
-		// the old "Query" is now implemented in invoke
-		return t.query(stub, args)
+	if function == "lend" {
+		return t.lend(stub, args)
+	} else if function == "pay" {
+		return t.pay(stub, args)
+	} else if function == "due" {
+		return t.due(stub, args)
 	}
 
 	return pb.Response{Status:403, Message:"Invalid invoke function name."}
 }
 
-// Transaction makes payment of x units from a to b
-func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var a, b string    // Entities
-	var aVal, bVal int // Asset holdings
-	var x int          // Transaction value
+func (t *LoanChaincode) lend(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	var borrower, amount, due, tolerance string
+	var amountVal, toleranceVal int
 	var err error
 
-	if len(args) != 3 {
-		return shim.Error("Incorrect number of arguments. Expecting 3")
+	if len(args) != 4 {
+		return shim.Error("Incorrect number of arguments")
 	}
 
 	a = args[0]
@@ -116,14 +80,15 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 	}
 	bVal, _ = strconv.Atoi(string(bBytes))
 
-	// Perform the execution
-	x, err = strconv.Atoi(args[2])
+	layout := "2006-01-02T15:04:05.000Z"
+	str := "2014-11-12T11:45:26.371Z"
+	t, err := time.Parse(layout, str)
+
 	if err != nil {
-		return pb.Response{Status:403, Message:"Invalid transaction amount, expecting a integer value"}
+		fmt.Println(err)
 	}
-	aVal = aVal - x
-	bVal = bVal + x
-	logger.Debug("aVal = %d, bVal = %d\n", aVal, bVal)
+	fmt.Println(t)
+
 
 	// Write the state back to the ledger
 	err = stub.PutState(a, []byte(strconv.Itoa(aVal)))
@@ -140,7 +105,7 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 }
 
 // deletes an entity from state
-func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *LoanChaincode) delete(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	if len(args) != 1 {
 		return pb.Response{Status:403, Message:"Incorrect number of arguments"}
 	}
@@ -157,7 +122,7 @@ func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string
 }
 
 // read value
-func (t *SimpleChaincode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *LoanChaincode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	var a string // Entities
 	var err error
 
@@ -194,7 +159,7 @@ var getCreator = func (certificate []byte) (string, string) {
 }
 
 func main() {
-	err := shim.Start(new(SimpleChaincode))
+	err := shim.Start(new(LoanChaincode))
 	if err != nil {
 		logger.Error(err.Error())
 	}
