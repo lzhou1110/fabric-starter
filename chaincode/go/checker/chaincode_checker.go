@@ -2,16 +2,11 @@
 package main
 
 import (
-	"strconv"
-
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
 	"encoding/pem"
 	"crypto/x509"
 	"strings"
-	"encoding/json"
-	"time"
-	"fmt"
 )
 
 var logger = shim.NewLogger("CheckerChaincode")
@@ -50,7 +45,7 @@ func (t *CheckerChaincode) bankrupt(stub shim.ChaincodeStubInterface, args []str
 	}
 	_, org := getCreator(creatorBytes)
 	if org != "system" {
-		return pb.Response{Status:401,Message:"[%s] cannot call method", org}
+		return pb.Response{Status:401,Message:"cannot call method"}
 	}
 
 	// Reading input
@@ -64,7 +59,9 @@ func (t *CheckerChaincode) bankrupt(stub shim.ChaincodeStubInterface, args []str
 	functionArgs[0] = []byte("due")
 	functionArgs[1] = []byte(currentDate)
 
-	stub.InvokeChaincode("loan", functionArgs, "relatonship")
+	response := stub.InvokeChaincode("loan", functionArgs, "relationship")
+
+	logger.Debugf("payload=%s", string(response.Payload))
 
 	return shim.Success(nil)
 }
