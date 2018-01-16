@@ -102,10 +102,66 @@ func (t *LoanChaincode) lend(stub shim.ChaincodeStubInterface, args []string) pb
 }
 
 func (t *LoanChaincode) pay(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	return shim.Success(nil)
+	if len(args) != 2 {
+		return pb.Response{Status:403,Message:"Incorrect number of arguments"}
+	}
+
+	creatorBytes, err := stub.GetCreator()
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	borrower, org := getCreator(creatorBytes)
+
+	if org != "borrower" {
+		//return pb.Response{Status:401,Message:"Cannot call method"}
+	}
+
+	lender := args[0]
+
+	amount := args[1]
+	amountVal, err := strconv.Atoi(amount)
+	if err != nil {
+		return pb.Response{Status:403,Message:"Cannot convert to int"}
+	}
+
+	ck, _ := stub.CreateCompositeKey("Loan", []string{borrower, lender})
+
+	loanBytes, err := stub.GetState(ck)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	if loanBytes == nil {
+		return pb.Response{Status:404,Message:"Loan not found"}
+	}
+
+	var loanValue LoanValue
+	err = json.Unmarshal(loanBytes, &loanValue)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	loanValue.Amount = loanValue.Amount - amountVal
+
+	loanBytes, err = json.Marshal(loanValue)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	stub.PutState(ck, loanBytes)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(loanBytes)
 }
 
 func (t *LoanChaincode) due(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	if len(args) != 1 {
+		return pb.Response{Status:403,Message:"Incorrect number of arguments"}
+	}
+
 	it, err := stub.GetStateByPartialCompositeKey("Loan", []string{})
 
 	if err != nil {

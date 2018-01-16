@@ -21,7 +21,7 @@ CHAINCODE_COMMON_NAME=loan
 CHAINCODE_BILATERAL_NAME=checker
 CHAINCODE_COMMON_INIT='{"Args":["init"]}'
 CHAINCODE_BILATERAL_INIT='{"Args":["init"]}'
-CHAINCODE_WARMUP_QUERY='{\"Args\":[\"query\"]}'
+CHAINCODE_WARMUP_QUERY='{\"Args\":[\"due\"]}'
 
 DEFAULT_ORDERER_PORT=7050
 DEFAULT_WWW_PORT=8080
@@ -501,7 +501,8 @@ function devInstantiate () {
 }
 
 function devInvoke () {
-  docker-compose -f ${COMPOSE_FILE_DEV} run cli bash -c "peer chaincode invoke -n mycc -v 0 -C myc -c '{\"Args\":[\"lend\",\"oleg\",\"10\",\"2018-02-16\",\"1\"]}'"
+#  docker-compose -f ${COMPOSE_FILE_DEV} run cli bash -c "peer chaincode invoke -n mycc -v 0 -C myc -c '{\"Args\":[\"lend\",\"oleg\",\"10\",\"2018-02-16\",\"1\"]}'"
+docker-compose -f ${COMPOSE_FILE_DEV} run cli bash -c "peer chaincode invoke -n mycc -v 0 -C myc -c '{\"Args\":[\"pay\",\"oleg\",\"1\"]}'"
 }
 
 function devQuery () {
