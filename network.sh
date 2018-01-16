@@ -18,10 +18,10 @@ COMPOSE_TEMPLATE=ledger/docker-composetemplate.yaml
 COMPOSE_FILE_DEV=ledger/docker-composedev.yaml
 
 CHAINCODE_COMMON_NAME=loan
-CHAINCODE_BILATERAL_NAME=score
-CHAINCODE_COMMON_INIT='{"Args":["init","a","100","b","100"]}'
-CHAINCODE_BILATERAL_INIT='{"Args":["init","a","100","b","100"]}'
-CHAINCODE_WARMUP_QUERY='{\"Args\":[\"query\",\"a\"]}'
+CHAINCODE_BILATERAL_NAME=checker
+CHAINCODE_COMMON_INIT='{"Args":["init"]}'
+CHAINCODE_BILATERAL_INIT='{"Args":["init"]}'
+CHAINCODE_WARMUP_QUERY='{\"Args\":[\"query\"]}'
 
 DEFAULT_ORDERER_PORT=7050
 DEFAULT_WWW_PORT=8080
@@ -493,19 +493,19 @@ function devNetworkDown () {
 }
 
 function devInstall () {
-  docker-compose -f ${COMPOSE_FILE_DEV} run cli bash -c "peer chaincode install -p relationship -n mycc -v 0"
+  docker-compose -f ${COMPOSE_FILE_DEV} run cli bash -c "peer chaincode install -p loan -n mycc -v 0"
 }
 
 function devInstantiate () {
-  docker-compose -f ${COMPOSE_FILE_DEV} run cli bash -c "peer chaincode instantiate -n mycc -v 0 -C myc -c '{\"Args\":[\"init\",\"a\",\"999\",\"b\",\"100\"]}'"
+  docker-compose -f ${COMPOSE_FILE_DEV} run cli bash -c "peer chaincode instantiate -n mycc -v 0 -C myc -c '{\"Args\":[]}'"
 }
 
 function devInvoke () {
-  docker-compose -f ${COMPOSE_FILE_DEV} run cli bash -c "peer chaincode invoke -n mycc -v 0 -C myc -c '{\"Args\":[\"move\",\"a\",\"b\",\"10\"]}'"
+  docker-compose -f ${COMPOSE_FILE_DEV} run cli bash -c "peer chaincode invoke -n mycc -v 0 -C myc -c '{\"Args\":[\"lend\",\"oleg\",\"10\",\"2018-02-16\",\"1\"]}'"
 }
 
 function devQuery () {
-  docker-compose -f ${COMPOSE_FILE_DEV} run cli bash -c "peer chaincode query -n mycc -v 0 -C myc -c '{\"Args\":[\"query\",\"a\"]}'"
+  docker-compose -f ${COMPOSE_FILE_DEV} run cli bash -c "peer chaincode query -n mycc -v 0 -C myc -c '{\"Args\":[\"due\"]}'"
 }
 
 function info() {

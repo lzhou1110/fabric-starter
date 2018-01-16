@@ -10,10 +10,15 @@ import (
 	"crypto/x509"
 	"strings"
 	"time"
-	"fmt"
+	"encoding/json"
 )
 
 var logger = shim.NewLogger("LoanChaincode")
+
+type LoanValue struct {
+	Amount     int            `json:"amount"`
+	Due        string         `json:"due"`
+}
 
 // LoanChaincode example simple Chaincode implementation
 type LoanChaincode struct {
@@ -28,15 +33,6 @@ func (t *LoanChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 func (t *LoanChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	logger.Debug("Invoke")
 
-	creatorBytes, err := stub.GetCreator()
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	name, org := getCreator(creatorBytes)
-
-	logger.Debug("transaction creator " + name + "@" + org)
-
 	function, args := stub.GetFunctionAndParameters()
 	if function == "lend" {
 		return t.lend(stub, args)
@@ -50,99 +46,99 @@ func (t *LoanChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 }
 
 func (t *LoanChaincode) lend(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var borrower, amount, due, tolerance string
-	var amountVal, toleranceVal int
-	var err error
-
 	if len(args) != 4 {
-		return shim.Error("Incorrect number of arguments")
+		return pb.Response{Status:403,Message:"Incorrect number of arguments"}
 	}
 
-	a = args[0]
-	b = args[1]
+	borrower := args[0]
 
-	// Get the state from the ledger
-	aBytes, err := stub.GetState(a)
+	amount := args[1]
+	amountVal, err := strconv.Atoi(amount)
 	if err != nil {
-		return shim.Error(err.Error())
+		return pb.Response{Status:403,Message:"Cannot convert to int"}
 	}
-	if aBytes == nil {
-		return shim.Error("Entity not found")
-	}
-	aVal, _ = strconv.Atoi(string(aBytes))
 
-	bBytes, err := stub.GetState(b)
+	due := args[2]
+	logger.Debugf("due=%s", due)
+
+	dueDate, err := time.Parse("2006-01-02", due)
 	if err != nil {
-		return shim.Error("Failed to get state")
+		logger.Error(err)
+		return pb.Response{Status:403,Message:"Cannot convert to Time"}
 	}
-	if bBytes == nil {
-		return shim.Error("Entity not found")
-	}
-	bVal, _ = strconv.Atoi(string(bBytes))
 
-	layout := "2006-01-02T15:04:05.000Z"
-	str := "2014-11-12T11:45:26.371Z"
-	t, err := time.Parse(layout, str)
-
+	tolerance := args[3]
+	toleranceVal, err := strconv.Atoi(tolerance)
 	if err != nil {
-		fmt.Println(err)
+		return pb.Response{Status:403,Message:"Cannot convert to int"}
 	}
-	fmt.Println(t)
 
-
-	// Write the state back to the ledger
-	err = stub.PutState(a, []byte(strconv.Itoa(aVal)))
+	creatorBytes, err := stub.GetCreator()
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(b, []byte(strconv.Itoa(bVal)))
+	lender, org := getCreator(creatorBytes)
+
+	if org != "lender" {
+		//return pb.Response{Status:401,Message:"Cannot call method"}
+	}
+
+	logger.Debugf("lender=%s borrower=%s amount=%d due=%s tolerance=%d", lender, borrower, amountVal,
+		dueDate.String(), toleranceVal)
+
+	ck, _ := stub.CreateCompositeKey("Loan", []string{borrower, lender})
+
+	loanValue := LoanValue{Amount:amountVal, Due:due}
+
+	bytesLoanValue, err := json.Marshal(loanValue)
+
+	err = stub.PutState(ck, bytesLoanValue)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
+	return shim.Success(bytesLoanValue)
+}
+
+func (t *LoanChaincode) pay(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	return shim.Success(nil)
 }
 
-// deletes an entity from state
-func (t *LoanChaincode) delete(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	if len(args) != 1 {
-		return pb.Response{Status:403, Message:"Incorrect number of arguments"}
-	}
+func (t *LoanChaincode) due(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	it, err := stub.GetStateByPartialCompositeKey("Loan", []string{})
 
-	a := args[0]
-
-	// Delete the key from the state in ledger
-	err := stub.DelState(a)
 	if err != nil {
 		return shim.Error(err.Error())
+	}
+	defer it.Close()
+
+	for it.HasNext() {
+		next, err := it.Next()
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+
+		var loanValue LoanValue
+		err = json.Unmarshal(next.Value, &loanValue)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+
+		_, keys, err := stub.SplitCompositeKey(next.Key)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+
+		borrower := keys[0]
+		lender := keys[1]
+		amount := loanValue.Amount
+		due := loanValue.Due
+
+		logger.Debugf("borrower=%s lender=%s amount=%d due=%s", borrower, lender, amount, due)
 	}
 
 	return shim.Success(nil)
-}
-
-// read value
-func (t *LoanChaincode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var a string // Entities
-	var err error
-
-	//if len(args) != 1 {
-	//	return pb.Response{Status:403, Message:"Incorrect number of arguments"}
-	//}
-
-	a = args[0]
-
-	// Get the state from the ledger
-	valBytes, err := stub.GetState(a)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	if valBytes == nil {
-		return shim.Error("Entity not found")
-	}
-
-	return shim.Success(valBytes)
 }
 
 var getCreator = func (certificate []byte) (string, string) {
