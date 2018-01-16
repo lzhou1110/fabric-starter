@@ -20,6 +20,11 @@ type LoanValue struct {
 	Due        string         `json:"due"`
 }
 
+type DefaultValue struct {
+	Amount     int            `json:"amount"`
+	Borrower   string         `json:"borrower"`
+}
+
 // LoanChaincode example simple Chaincode implementation
 type LoanChaincode struct {
 }
@@ -59,7 +64,6 @@ func (t *LoanChaincode) lend(stub shim.ChaincodeStubInterface, args []string) pb
 	}
 
 	due := args[2]
-	logger.Debugf("due=%s", due)
 
 	dueDate, err := time.Parse("2006-01-02", due)
 	if err != nil {
@@ -81,7 +85,7 @@ func (t *LoanChaincode) lend(stub shim.ChaincodeStubInterface, args []string) pb
 	lender, org := getCreator(creatorBytes)
 
 	if org != "lender" {
-		//return pb.Response{Status:401,Message:"Cannot call method"}
+		return pb.Response{Status:401,Message:"Cannot call method"}
 	}
 
 	logger.Debugf("lender=%s borrower=%s amount=%d due=%s tolerance=%d", lender, borrower, amountVal,
@@ -114,7 +118,7 @@ func (t *LoanChaincode) pay(stub shim.ChaincodeStubInterface, args []string) pb.
 	borrower, org := getCreator(creatorBytes)
 
 	if org != "borrower" {
-		//return pb.Response{Status:401,Message:"Cannot call method"}
+		return pb.Response{Status:401,Message:"Cannot call method"}
 	}
 
 	lender := args[0]
@@ -162,6 +166,14 @@ func (t *LoanChaincode) due(stub shim.ChaincodeStubInterface, args []string) pb.
 		return pb.Response{Status:403,Message:"Incorrect number of arguments"}
 	}
 
+	today := args[0]
+
+	todayDate, err := time.Parse("2006-01-02", today)
+	if err != nil {
+		logger.Error(err)
+		return pb.Response{Status:403,Message:"Cannot convert to Time"}
+	}
+
 	it, err := stub.GetStateByPartialCompositeKey("Loan", []string{})
 
 	if err != nil {
@@ -169,6 +181,7 @@ func (t *LoanChaincode) due(stub shim.ChaincodeStubInterface, args []string) pb.
 	}
 	defer it.Close()
 
+	arr := []DefaultValue{}
 	for it.HasNext() {
 		next, err := it.Next()
 		if err != nil {
@@ -191,10 +204,27 @@ func (t *LoanChaincode) due(stub shim.ChaincodeStubInterface, args []string) pb.
 		amount := loanValue.Amount
 		due := loanValue.Due
 
+		dueDate, err := time.Parse("2006-01-02", due)
+		if err != nil {
+			logger.Error(err)
+			return pb.Response{Status:403,Message:"Cannot convert to Time"}
+		}
+
 		logger.Debugf("borrower=%s lender=%s amount=%d due=%s", borrower, lender, amount, due)
+
+		if todayDate.After(dueDate) && amount > 0 {
+			defaultValue := DefaultValue{Borrower:borrower,Amount:amount}
+			arr = append(arr, defaultValue)
+		}
+
 	}
 
-	return shim.Success(nil)
+	ret, err := json.Marshal(arr)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(ret)
 }
 
 var getCreator = func (certificate []byte) (string, string) {

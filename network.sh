@@ -21,7 +21,7 @@ CHAINCODE_COMMON_NAME=loan
 CHAINCODE_BILATERAL_NAME=checker
 CHAINCODE_COMMON_INIT='{"Args":["init"]}'
 CHAINCODE_BILATERAL_INIT='{"Args":["init"]}'
-CHAINCODE_WARMUP_QUERY='{\"Args\":[\"due\"]}'
+CHAINCODE_WARMUP_QUERY='{\"Args\":[\"due\",\"2018-01-16\"]}'
 
 DEFAULT_ORDERER_PORT=7050
 DEFAULT_WWW_PORT=8080
@@ -361,7 +361,7 @@ function joinWarmUp() {
   chaincode_name=$3
 
   joinChannel ${org} ${channel_name}
-  sleep 7
+  #sleep 7
   warmUpChaincode ${org} ${channel_name} ${chaincode_name}
 }
 
@@ -374,7 +374,7 @@ function createJoinInstantiateWarmUp() {
   createChannel ${org} ${channel_name}
   joinChannel ${org} ${channel_name}
   instantiateChaincode ${org} ${channel_name} ${chaincode_name} ${chaincode_init}
-  sleep 7
+  #sleep 7
   warmUpChaincode ${org} ${channel_name} ${chaincode_name}
 }
 
